@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"github.com/fatih/color"
 	"github.com/seekehr/DevSpoofGOTest/info"
@@ -18,9 +19,31 @@ var (
 )
 
 func main() {
+
+	// Parse command-line flags
+	osFlag := flag.Bool("o", false, "enable os output")
+	diskFlag := flag.Bool("d", false, "enable disk output")
+	hardwareFlag := flag.Bool("h", false, "enable hardware output")
+	networkFlag := flag.Bool("n", false, "enable network output")
+	flag.Parse()
+
+	var activeFlags []string
+	if *osFlag {
+		activeFlags = append(activeFlags, "o")
+	}
+	if *diskFlag {
+		activeFlags = append(activeFlags, "d")
+	}
+	if *hardwareFlag {
+		activeFlags = append(activeFlags, "h")
+	}
+	if *networkFlag {
+		activeFlags = append(activeFlags, "n")
+	}
+
 	i := 0
 	for {
-		OutputProcess(i)
+		OutputProcess(i, activeFlags...)
 		time.Sleep(4 * time.Second)
 		i++
 	}
@@ -31,7 +54,7 @@ var green = color.New(color.FgGreen).SprintFunc()
 var blue = color.New(color.FgBlue).SprintFunc()
 var cyan = color.New(color.FgCyan).SprintFunc()
 
-func OutputProcess(iteration int) {
+func OutputProcess(iteration int, flags ...string) {
 	// Get the current process information
 	process := os.Getpid()
 	processName, err := os.Executable()
@@ -45,11 +68,19 @@ func OutputProcess(iteration int) {
 	fmt.Println("=========" + blue("DevSpoofGOTest.exe "+strconv.Itoa(iteration)) + "=========")
 	fmt.Println(green("PID: ") + strconv.Itoa(process))
 
-	outputOS()
-	outputDisk()
-	outputHardware()
+	for _, aflag := range flags {
+		if aflag == "o" {
+			outputOS()
+		} else if aflag == "d" {
+			outputDisk()
+		} else if aflag == "h" {
+			outputHardware()
+		} else if aflag == "n" {
+			outputNetwork()
+		}
+	}
 
-	fmt.Println("=====================\n")
+	fmt.Println("===========================================\n")
 }
 
 func outputOS() {
@@ -96,6 +127,44 @@ func outputHardware() {
 		str += red("Error getting motherboard serial (" + err.Error() + ")")
 	} else {
 		str += motherboardSerial
+	}
+	fmt.Println(str)
+}
+
+func outputNetwork() {
+	adapters, err := info.GetWlanInfo()
+
+	str := green("Network Adapters: ")
+	if err != nil {
+		str += red("Error getting adapter info: " + err.Error())
+	} else {
+		if len(adapters) == 0 {
+			str += cyan("No adapters found")
+		} else {
+			str += cyan("\n=====Network Adapters=====\n")
+			adapterCount := 1
+			for _, adapter := range adapters {
+				// Skip virtual adapters in output
+				if adapter.AdapterType == "Virtual" {
+					continue
+				}
+				
+				str += cyan(fmt.Sprintf("Adapter %d (%s):\n", adapterCount, adapter.AdapterType))
+				str += green("MAC: ") + adapter.MAC + "\n"
+				str += green("GUID: ") + adapter.GUID + "\n"
+				
+				if adapter.BSSID != "" {
+					str += green("BSSID: ") + adapter.BSSID + "\n"
+				} else if adapter.AdapterType == "Wi-Fi" {
+					str += green("BSSID: ") + red("Not connected") + "\n"
+				} else {
+					str += green("BSSID: ") + cyan("N/A") + "\n"
+				}
+				
+				str += "===============\n"
+				adapterCount++
+			}
+		}
 	}
 	fmt.Println(str)
 }
