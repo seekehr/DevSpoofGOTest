@@ -128,6 +128,15 @@ func outputHardware() {
 	} else {
 		str += motherboardSerial
 	}
+
+	biosSerial, err := info.GetBIOSSerial()
+	str += "\n" + green("BIOS Serial: ")
+	if err != nil {
+		str += red("Error getting BIOS serial (" + err.Error() + ")")
+	} else {
+		str += biosSerial
+	}
+
 	fmt.Println(str)
 }
 
