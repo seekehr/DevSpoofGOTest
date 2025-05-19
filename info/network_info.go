@@ -12,7 +12,7 @@ func bytePointerToString(ptr *byte) string {
 	if ptr == nil {
 		return ""
 	}
-	
+
 	length := 0
 	for {
 		if *(*byte)(unsafe.Pointer(uintptr(unsafe.Pointer(ptr)) + uintptr(length))) == 0 {
@@ -20,12 +20,12 @@ func bytePointerToString(ptr *byte) string {
 		}
 		length++
 	}
-	
+
 	bytes := make([]byte, length)
 	for i := 0; i < length; i++ {
 		bytes[i] = *(*byte)(unsafe.Pointer(uintptr(unsafe.Pointer(ptr)) + uintptr(i)))
 	}
-	
+
 	return string(bytes)
 }
 
@@ -62,18 +62,18 @@ func normalizeGUID(guid string) string {
 func filterAdapters(adapters []WlanInfo) []WlanInfo {
 	seenMACs := make(map[string]bool)
 	bestAdapters := make(map[string]WlanInfo)
-	
+
 	for _, adapter := range adapters {
 		if adapter.MAC == "" || adapter.MAC == "00:00:00:00:00:00" {
 			continue
 		}
-		
+
 		if adapter.AdapterType == "Wi-Fi" && adapter.BSSID != "" {
 			bestAdapters[adapter.MAC] = adapter
 			seenMACs[adapter.MAC] = true
 			continue
 		}
-		
+
 		if !seenMACs[adapter.MAC] {
 			bestAdapters[adapter.MAC] = adapter
 			seenMACs[adapter.MAC] = true
@@ -84,33 +84,33 @@ func filterAdapters(adapters []WlanInfo) []WlanInfo {
 			}
 		}
 	}
-	
+
 	var result []WlanInfo
 	for _, adapter := range bestAdapters {
 		result = append(result, adapter)
 	}
-	
+
 	return result
 }
 
 // getAdaptersFromIpHelper gets adapter information using IP Helper API
 func getAdaptersFromIpHelper() ([]WlanInfo, error) {
 	var adapters []WlanInfo
-	
+
 	iphlpapi := syscall.NewLazyDLL("iphlpapi.dll")
 	if iphlpapi.Load() != nil {
 		return nil, fmt.Errorf("failed to load iphlpapi.dll")
 	}
 
 	getAdaptersAddresses := iphlpapi.NewProc("GetAdaptersAddresses")
-	
+
 	const (
-		MAX_ADAPTER_ADDRESS_LENGTH = 8
-		ERROR_BUFFER_OVERFLOW      = 111
-		GAA_FLAG_INCLUDE_GATEWAYS  = 0x1
+		MAX_ADAPTER_ADDRESS_LENGTH      = 8
+		ERROR_BUFFER_OVERFLOW           = 111
+		GAA_FLAG_INCLUDE_GATEWAYS       = 0x1
 		GAA_FLAG_INCLUDE_ALL_INTERFACES = 0x100
-		AF_UNSPEC                  = 0
-		
+		AF_UNSPEC                       = 0
+
 		IF_TYPE_ETHERNET_CSMACD    = 6
 		IF_TYPE_ISO88025_TOKENRING = 9
 		IF_TYPE_PPP                = 23
@@ -123,7 +123,7 @@ func getAdaptersFromIpHelper() ([]WlanInfo, error) {
 	var size uint32
 	result, _, _ := getAdaptersAddresses.Call(
 		uintptr(AF_UNSPEC),
-		uintptr(GAA_FLAG_INCLUDE_GATEWAYS | GAA_FLAG_INCLUDE_ALL_INTERFACES),
+		uintptr(GAA_FLAG_INCLUDE_GATEWAYS|GAA_FLAG_INCLUDE_ALL_INTERFACES),
 		0, 0,
 		uintptr(unsafe.Pointer(&size)),
 	)
@@ -135,7 +135,7 @@ func getAdaptersFromIpHelper() ([]WlanInfo, error) {
 	buffer := make([]byte, size)
 	result, _, _ = getAdaptersAddresses.Call(
 		uintptr(AF_UNSPEC),
-		uintptr(GAA_FLAG_INCLUDE_GATEWAYS | GAA_FLAG_INCLUDE_ALL_INTERFACES),
+		uintptr(GAA_FLAG_INCLUDE_GATEWAYS|GAA_FLAG_INCLUDE_ALL_INTERFACES),
 		0,
 		uintptr(unsafe.Pointer(&buffer[0])),
 		uintptr(unsafe.Pointer(&size)),
@@ -149,15 +149,15 @@ func getAdaptersFromIpHelper() ([]WlanInfo, error) {
 		Length                uint32
 		IfIndex               uint32
 		Next                  uintptr
-		AdapterName          *byte
-		FirstUnicastAddress  uintptr
-		FirstAnycastAddress  uintptr
+		AdapterName           *byte
+		FirstUnicastAddress   uintptr
+		FirstAnycastAddress   uintptr
 		FirstMulticastAddress uintptr
 		FirstDnsServerAddress uintptr
-		DnsSuffix            *uint16
-		Description          *uint16
-		FriendlyName         *uint16
-		PhysicalAddress      [MAX_ADAPTER_ADDRESS_LENGTH]byte
+		DnsSuffix             *uint16
+		Description           *uint16
+		FriendlyName          *uint16
+		PhysicalAddress       [MAX_ADAPTER_ADDRESS_LENGTH]byte
 		PhysicalAddressLength uint32
 		Flags                 uint32
 		Mtu                   uint32
@@ -170,7 +170,7 @@ func getAdaptersFromIpHelper() ([]WlanInfo, error) {
 
 	for adapterPtr := uintptr(unsafe.Pointer(&buffer[0])); adapterPtr != 0; {
 		adapter := (*IP_ADAPTER_ADDRESSES)(unsafe.Pointer(adapterPtr))
-		
+
 		mac := ""
 		if adapter.PhysicalAddressLength > 0 {
 			for i := 0; i < int(adapter.PhysicalAddressLength); i++ {
@@ -185,7 +185,7 @@ func getAdaptersFromIpHelper() ([]WlanInfo, error) {
 		if adapter.AdapterName != nil {
 			guid = bytePointerToString(adapter.AdapterName)
 		}
-		
+
 		adapterType := "Unknown"
 		switch adapter.IfType {
 		case IF_TYPE_ETHERNET_CSMACD:
@@ -199,7 +199,7 @@ func getAdaptersFromIpHelper() ([]WlanInfo, error) {
 		case IF_TYPE_PPP:
 			adapterType = "PPP"
 		}
-		
+
 		if strings.HasPrefix(mac, "00:15:5D") {
 			adapterType = "Virtual"
 		}
@@ -226,20 +226,21 @@ func getAdaptersFromIpHelper() ([]WlanInfo, error) {
 				Description: description,
 			})
 		}
-		
+
 		adapterPtr = adapter.Next
 	}
-	
+
 	return adapters, nil
 }
 
 // tryAddWlanInfo adds WLAN-specific information to existing adapters
 func tryAddWlanInfo(adapters []WlanInfo) {
+
 	wlanapi := syscall.NewLazyDLL("wlanapi.dll")
 	if wlanapi.Load() != nil {
 		return
 	}
-	
+
 	wlanOpenHandle := wlanapi.NewProc("WlanOpenHandle")
 	wlanEnumInterfaces := wlanapi.NewProc("WlanEnumInterfaces")
 	wlanQueryInterface := wlanapi.NewProc("WlanQueryInterface")
@@ -249,31 +250,31 @@ func tryAddWlanInfo(adapters []WlanInfo) {
 	var clientVersion uint32 = 2
 	var clientHandle uintptr
 	var negotiatedVersion uint32
-	
+
 	result, _, _ := wlanOpenHandle.Call(
 		uintptr(clientVersion),
 		0,
 		uintptr(unsafe.Pointer(&negotiatedVersion)),
 		uintptr(unsafe.Pointer(&clientHandle)),
 	)
-	
+
 	if result != 0 {
 		return
 	}
-	
+
 	defer wlanCloseHandle.Call(clientHandle, 0)
-	
+
 	var interfaceList uintptr
 	result, _, _ = wlanEnumInterfaces.Call(
 		clientHandle,
 		0,
 		uintptr(unsafe.Pointer(&interfaceList)),
 	)
-	
+
 	if result != 0 || interfaceList == 0 {
 		return
 	}
-	
+
 	defer wlanFreeMemory.Call(interfaceList)
 
 	type GUID struct {
@@ -283,29 +284,29 @@ func tryAddWlanInfo(adapters []WlanInfo) {
 		Data4 [8]byte
 	}
 
-	type WLAN_INTERFACE_INFO struct {
-		InterfaceGuid           GUID
-		InterfaceName           [256]uint16
-		InterfaceState          uint32
+	type WlanInterfaceInfo struct {
+		InterfaceGuid  GUID
+		InterfaceName  [256]uint16
+		InterfaceState uint32
 	}
 
-	type WLAN_INTERFACE_INFO_LIST struct {
+	type WlanInterfaceInfoList struct {
 		NumberOfItems uint32
 		Index         uint32
-		InterfaceInfo [1]WLAN_INTERFACE_INFO
+		InterfaceInfo [1]WlanInterfaceInfo
 	}
 
-	const wlan_intf_opcode_current_connection = 7
-	
-	infoList := (*WLAN_INTERFACE_INFO_LIST)(unsafe.Pointer(interfaceList))
-	numInterfaces := infoList.NumberOfItems
-	
-	for i := uint32(0); i < numInterfaces; i++ {
-		offset := unsafe.Sizeof(WLAN_INTERFACE_INFO{}) * uintptr(i)
-		infoPtr := interfaceList + unsafe.Sizeof(uint32(0))*2 + offset
-		info := (*WLAN_INTERFACE_INFO)(unsafe.Pointer(infoPtr))
+	const wlanIntfOpcodeCurrentConnection = 7
 
-		guidString := fmt.Sprintf("{%08X-%04X-%04X-%02X%02X-%02X%02X%02X%02X%02X%02X}",
+	infoList := (*WlanInterfaceInfoList)(unsafe.Pointer(interfaceList))
+	numInterfaces := infoList.NumberOfItems
+
+	for i := uint32(0); i < numInterfaces; i++ {
+		offset := unsafe.Sizeof(WlanInterfaceInfo{}) * uintptr(i)
+		infoPtr := interfaceList + unsafe.Sizeof(uint32(0))*2 + offset
+		info := (*WlanInterfaceInfo)(unsafe.Pointer(infoPtr))
+
+		guidString := fmt.Sprintf("%08X-%04X-%04X-%02X%02X-%02X%02X%02X%02X%02X%02X",
 			info.InterfaceGuid.Data1,
 			info.InterfaceGuid.Data2,
 			info.InterfaceGuid.Data3,
@@ -319,7 +320,7 @@ func tryAddWlanInfo(adapters []WlanInfo) {
 		result, _, _ = wlanQueryInterface.Call(
 			clientHandle,
 			uintptr(unsafe.Pointer(&info.InterfaceGuid)),
-			wlan_intf_opcode_current_connection,
+			wlanIntfOpcodeCurrentConnection,
 			0,
 			uintptr(unsafe.Pointer(&dataSize)),
 			uintptr(unsafe.Pointer(&currentConnection)),
@@ -333,28 +334,28 @@ func tryAddWlanInfo(adapters []WlanInfo) {
 					Length uint32
 					Ssid   [32]byte
 				}
-				Dot11BssType           uint32
-				Dot11Bssid             [6]byte
-				Dot11PhyType           uint32
-				Dot11PhyIndex          uint32
-				WlanSignalQuality      uint32
-				RxRate                 uint32
-				TxRate                 uint32
+				Dot11BssType      uint32
+				Dot11Bssid        [6]byte
+				Dot11PhyType      uint32
+				Dot11PhyIndex     uint32
+				WlanSignalQuality uint32
+				RxRate            uint32
+				TxRate            uint32
 			}
-			
+
 			type WLAN_CONNECTION_ATTRIBUTES struct {
-				IsState                uint32
-				WlanConnectionMode     uint32
-				ProfileName            [256]uint16
-				AssociationAttributes  WLAN_ASSOCIATION_ATTRIBUTES
-				SecurityAttributes     uint64
-				MSMState               uint32
-				WLAN_REASON_CODE       uint32
+				IsState               uint32
+				WlanConnectionMode    uint32
+				ProfileName           [256]uint16
+				AssociationAttributes WLAN_ASSOCIATION_ATTRIBUTES
+				SecurityAttributes    uint64
+				MSMState              uint32
+				WLAN_REASON_CODE      uint32
 			}
-			
+
 			wlanConnAttr := (*WLAN_CONNECTION_ATTRIBUTES)(unsafe.Pointer(currentConnection))
 			bssidBytes := wlanConnAttr.AssociationAttributes.Dot11Bssid
-			
+
 			allZeros := true
 			for _, b := range bssidBytes {
 				if b != 0 {
@@ -362,21 +363,24 @@ func tryAddWlanInfo(adapters []WlanInfo) {
 					break
 				}
 			}
-			
+
 			if !allZeros {
-				bssid = fmt.Sprintf("%02X:%02X:%02X:%02X:%02X:%02X", 
+				bssid = fmt.Sprintf("%02X:%02X:%02X:%02X:%02X:%02X",
 					bssidBytes[0], bssidBytes[1], bssidBytes[2],
 					bssidBytes[3], bssidBytes[4], bssidBytes[5])
 			}
-				
+
 			wlanFreeMemory.Call(currentConnection)
 		}
 
 		if bssid != "" {
+			// Only assign to the matching adapter
 			normalizedGUID := normalizeGUID(guidString)
-			
+
 			for j := range adapters {
-				if normalizeGUID(adapters[j].GUID) == normalizedGUID {
+				// Match by GUID or look for our special GUID with "MEOW"
+				if normalizeGUID(adapters[j].GUID) == normalizedGUID ||
+					strings.Contains(adapters[j].GUID, "MEOW") {
 					adapters[j].BSSID = bssid
 					adapters[j].AdapterType = "Wi-Fi"
 					break

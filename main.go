@@ -148,19 +148,17 @@ func outputNetwork() {
 				if adapter.AdapterType == "Virtual" {
 					continue
 				}
-				
+
 				str += cyan(fmt.Sprintf("Adapter %d (%s):\n", adapterCount, adapter.AdapterType))
 				str += green("MAC: ") + adapter.MAC + "\n"
 				str += green("GUID: ") + adapter.GUID + "\n"
-				
+
 				if adapter.BSSID != "" {
 					str += green("BSSID: ") + adapter.BSSID + "\n"
-				} else if adapter.AdapterType == "Wi-Fi" {
-					str += green("BSSID: ") + red("Not connected") + "\n"
 				} else {
 					str += green("BSSID: ") + cyan("N/A") + "\n"
 				}
-				
+
 				str += "===============\n"
 				adapterCount++
 			}
