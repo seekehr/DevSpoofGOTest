@@ -161,6 +161,13 @@ func outputHardware() {
 		str += systemUUID
 	}
 
+	machineGUID, err := info.GetMachineGUID()
+	str += "\n" + green("Machine GUID: ")
+	if err != nil {
+		str += red("Error getting machine GUID (" + err.Error() + ")")
+	} else {
+		str += machineGUID
+	}
 	fmt.Println(str)
 }
 

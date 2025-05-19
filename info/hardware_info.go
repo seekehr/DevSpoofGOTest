@@ -3,6 +3,8 @@ package info
 import (
 	"bytes"
 	"fmt"
+	"github.com/seekehr/DevSpoofGO/logger"
+	"golang.org/x/sys/windows/registry"
 	"syscall"
 	"unsafe"
 )
@@ -350,4 +352,20 @@ func extractString(data []byte, startOffset, index int) (string, error) {
 	}
 
 	return string(data[offset : offset+end]), nil
+}
+
+func GetMachineGUID() (string, error) {
+	k, err := registry.OpenKey(registry.LOCAL_MACHINE, `SOFTWARE\Microsoft\Cryptography`, registry.READ)
+	if err != nil {
+		return "", err
+	}
+	defer k.Close()
+
+	s, _, err := k.GetStringValue("MachineGuid")
+	if err != nil {
+		logger.Error("Failed to read MachineGuid value", err)
+		return "", err
+	}
+
+	return s, nil
 }
