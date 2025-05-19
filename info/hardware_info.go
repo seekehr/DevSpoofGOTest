@@ -9,9 +9,10 @@ import (
 
 // Windows API constants
 const (
-	RSMB                        = 0x52534D42
-	SmbiosTypeSystemInformation = 1
-	SmbiosTypeBaseboard         = 2 // Type 2 is for baseboard (motherboard) info
+	RSMB                           = 0x52534D42
+	SmbiosTypeSystemInformation    = 1
+	SmbiosTypeBaseboard            = 2 // Type 2 is for baseboard (motherboard) info
+	SmbiosTypeProcessorInformation = 4 // Type 0 is for BIOS info
 )
 
 type RawSMBIOSData struct {
@@ -27,6 +28,16 @@ type SMBIOSHeader struct {
 	Type   byte
 	Length byte
 	Handle uint16
+}
+
+type SmbiosProcessorInformation struct {
+	SMBIOSHeader
+	SocketDesignation byte // String index
+	ProcessorType     byte
+	Family            byte
+	Manufacturer      byte    // String index
+	ProcessorID       [8]byte // Interpretation is architecture-dependent
+	// ... other fields follow
 }
 
 var (
@@ -224,6 +235,104 @@ func parseBIOSSerial(data []byte) (string, error) {
 	}
 
 	return "", fmt.Errorf("system information structure (Type 1) not found")
+}
+
+func GetProcessorID() (string, error) {
+	// First call with 0 buffer size to get required size
+	size, _, err := procGetSystemFirmwareTable.Call(
+		uintptr(RSMB),
+		0,
+		0,
+		0,
+	)
+
+	if size == 0 {
+		if err != nil {
+			return "", fmt.Errorf("failed to get required buffer size for SMBIOS data: %w", err)
+		}
+		return "", fmt.Errorf("failed to get required buffer size for SMBIOS data: size is 0")
+	}
+
+	buffer := make([]byte, size)
+
+	// Second call to get the actual data
+	bytesWritten, _, err := procGetSystemFirmwareTable.Call(
+		uintptr(RSMB),
+		0,
+		uintptr(unsafe.Pointer(&buffer[0])),
+		uintptr(size),
+	)
+
+	if bytesWritten == 0 {
+		if err != nil {
+			return "", fmt.Errorf("failed to get firmware table data: %w", err)
+		}
+		return "", fmt.Errorf("failed to get firmware table data: 0 bytes written")
+	}
+
+	if bytesWritten < 8 {
+		return "", fmt.Errorf("received truncated SMBIOS data (less than header size)")
+	}
+
+	smbiosData := (*RawSMBIOSData)(unsafe.Pointer(&buffer[0]))
+
+	tableDataOffset := unsafe.Offsetof(smbiosData.SMBIOSTableData)
+	if int(tableDataOffset) > len(buffer) {
+		return "", fmt.Errorf("internal error: invalid SMBIOS data buffer offset")
+	}
+	tableData := buffer[tableDataOffset:]
+
+	if int(smbiosData.Length) > len(tableData) {
+		return "", fmt.Errorf("SMBIOS reported length (%d) exceeds buffer capacity (%d)", smbiosData.Length, len(tableData))
+	}
+	tableData = tableData[:smbiosData.Length]
+
+	offset := 0
+	for offset < len(tableData) {
+		if offset+4 > len(tableData) {
+			break
+		}
+
+		header := (*SMBIOSHeader)(unsafe.Pointer(&tableData[offset]))
+
+		if header.Type == SmbiosTypeProcessorInformation {
+			if offset+16 > len(tableData) || int(header.Length) < 16 {
+				return "", fmt.Errorf("processor information structure (Type 4) too short (%d bytes) to contain ProcessorID (requires at least 16)", header.Length)
+			}
+
+			processorInfo := (*SmbiosProcessorInformation)(unsafe.Pointer(&tableData[offset]))
+
+			// Format ProcessorID bytes as a hexadecimal string
+			return fmt.Sprintf("%x", processorInfo.ProcessorID[:]), nil
+		}
+
+		structSize := int(header.Length)
+		stringOffset := offset + structSize
+
+		for stringOffset+1 < len(tableData) {
+			if tableData[stringOffset] == 0 && tableData[stringOffset+1] == 0 {
+				structSize += (stringOffset - (offset + int(header.Length))) + 2
+				break
+			}
+			stringOffset++
+		}
+
+		if stringOffset+1 >= len(tableData) {
+			if len(tableData) >= 2 && tableData[len(tableData)-2] == 0 && tableData[len(tableData)-1] == 0 {
+				structSize += (len(tableData) - (offset + int(header.Length)))
+			} else {
+				structSize = int(header.Length)
+			}
+		}
+
+		offset += structSize
+
+		if offset >= len(tableData) {
+			break
+		}
+	}
+
+	return "", fmt.Errorf("processor information structure (Type 4) not found")
 }
 
 func extractString(data []byte, startOffset, index int) (string, error) {

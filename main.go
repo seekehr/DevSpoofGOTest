@@ -137,6 +137,14 @@ func outputHardware() {
 		str += biosSerial
 	}
 
+	processorID, err := info.GetProcessorID()
+	str += "\n" + green("Processor ID: ")
+	if err != nil {
+		str += red("Error getting processor ID (" + err.Error() + ")")
+	} else {
+		str += processorID
+	}
+
 	fmt.Println(str)
 }
 
