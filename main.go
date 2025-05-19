@@ -145,6 +145,14 @@ func outputHardware() {
 		str += processorID
 	}
 
+	systemUUID, err := info.GetSystemUUID()
+	str += "\n" + green("System UUID: ")
+	if err != nil {
+		str += red("Error getting system UUID (" + err.Error() + ")")
+	} else {
+		str += systemUUID
+	}
+
 	fmt.Println(str)
 }
 
