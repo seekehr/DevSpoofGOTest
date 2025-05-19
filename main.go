@@ -116,6 +116,14 @@ func outputDisk() {
 	} else {
 		str += volumeSerialW
 	}
+
+	diskSerial, err := info.GetActiveDriveSerialNumber()
+	str += "\n" + green("Disk Serial: ")
+	if err != nil {
+		str += red("Error getting disk serial: " + err.Error())
+	} else {
+		str += diskSerial
+	}
 	fmt.Println(str)
 }
 
