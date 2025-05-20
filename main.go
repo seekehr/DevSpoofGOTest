@@ -25,6 +25,7 @@ func main() {
 	diskFlag := flag.Bool("d", false, "enable disk output")
 	hardwareFlag := flag.Bool("h", false, "enable hardware output")
 	networkFlag := flag.Bool("n", false, "enable network output")
+	certificatesFlag := flag.Bool("c", false, "enable certificate output")
 	flag.Parse()
 
 	var activeFlags []string
@@ -39,6 +40,9 @@ func main() {
 	}
 	if *networkFlag {
 		activeFlags = append(activeFlags, "n")
+	}
+	if *certificatesFlag {
+		activeFlags = append(activeFlags, "c")
 	}
 
 	i := 0
@@ -77,6 +81,10 @@ func OutputProcess(iteration int, flags ...string) {
 			outputHardware()
 		} else if aflag == "n" {
 			outputNetwork()
+		} else if aflag == "c" {
+			outputCertificates()
+		} else {
+			fmt.Println(red("Invalid flag: " + aflag))
 		}
 	}
 
@@ -204,5 +212,25 @@ func outputNetwork() {
 			}
 		}
 	}
+	fmt.Println(str)
+}
+
+func outputCertificates() {
+	str := green("=====Certificates=====")
+	certificates, err := info.GetCertificatesFromRegistry()
+	if err != nil {
+		str += red("Error getting certificates: " + err.Error())
+	} else {
+		if len(certificates) == 0 {
+			str += cyan("No certificates found")
+		} else {
+			str += cyan("\n=====Certificates=====\n")
+			for _, cert := range certificates {
+				str += green("Certificate: ") + cert + "\n"
+			}
+			str += "=====================\n"
+		}
+	}
+
 	fmt.Println(str)
 }
