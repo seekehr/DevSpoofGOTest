@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/fatih/color"
 	"github.com/seekehr/DevSpoofGOTest/info"
+	"golang.org/x/sys/windows/registry"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -26,6 +27,7 @@ func main() {
 	hardwareFlag := flag.Bool("h", false, "enable hardware output")
 	networkFlag := flag.Bool("n", false, "enable network output")
 	certificatesFlag := flag.Bool("c", false, "enable certificate output")
+	versionInfoFlag := flag.Bool("v", false, "enable version info output")
 	flag.Parse()
 
 	var activeFlags []string
@@ -43,6 +45,9 @@ func main() {
 	}
 	if *certificatesFlag {
 		activeFlags = append(activeFlags, "c")
+	}
+	if *versionInfoFlag {
+		activeFlags = append(activeFlags, "v")
 	}
 
 	i := 0
@@ -83,6 +88,8 @@ func OutputProcess(iteration int, flags ...string) {
 			outputNetwork()
 		} else if aflag == "c" {
 			outputCertificates()
+		} else if aflag == "v" {
+			outputVersionInfo()
 		} else {
 			fmt.Println(red("Invalid flag: " + aflag))
 		}
@@ -232,5 +239,54 @@ func outputCertificates() {
 		}
 	}
 
+	fmt.Println(str)
+}
+
+func outputVersionInfo() {
+	str := green("=====Version Info=====")
+	regPath := `SOFTWARE\Microsoft\Windows NT\CurrentVersion`
+	k, err := registry.OpenKey(registry.LOCAL_MACHINE, regPath, registry.READ)
+	if err != nil {
+		str += red("Error getting version info: " + err.Error())
+	} else {
+		digitalId, err := info.GetDigitalID(k)
+		if err != nil {
+			str += "\n" + red("Error getting DigitalProductId: "+err.Error())
+		} else {
+			str += "\n" + green("DigitalProductId: ") + digitalId
+		}
+
+		digitalId4, err := info.GetDigitalID4(k)
+		if err != nil {
+			str += "\n" + red("Error getting DigitalProductId4: "+err.Error())
+		} else {
+			str += "\n" + green("DigitalProductId4: ") + digitalId4
+		}
+
+		productId, err := info.GetProductID(k)
+		if err != nil {
+			str += "\n" + red("Error getting ProductId: "+err.Error())
+		} else {
+			str += "\n" + green("ProductId: ") + productId
+		}
+
+		installDate, err := info.GetInstallDate(k)
+		if err != nil {
+			str += "\n" + red("Error getting InstallDate: "+err.Error())
+		} else {
+			str += "\n" + green("InstallDate: ") + installDate
+		}
+
+		installTime, err := info.GetInstallTime(k)
+		if err != nil {
+			str += "\n" + red("Error getting InstallTime: "+err.Error())
+		} else {
+			str += "\n" + green("InstallTime: ") + installTime
+		}
+
+		defer k.Close()
+	}
+
+	str += green("\n=====================")
 	fmt.Println(str)
 }
