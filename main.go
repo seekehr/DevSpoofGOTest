@@ -4,10 +4,12 @@ import (
 	"flag"
 	"fmt"
 	"github.com/fatih/color"
-	"github.com/seekehr/DevSpoofGOTest/info"
+	"github.com/seekehr/DevSpoofGOTest/native"
+	"github.com/seekehr/DevSpoofGOTest/wmi"
 	"golang.org/x/sys/windows/registry"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"syscall"
 	"time"
@@ -27,7 +29,8 @@ func main() {
 	hardwareFlag := flag.Bool("h", false, "enable hardware output")
 	networkFlag := flag.Bool("n", false, "enable network output")
 	certificatesFlag := flag.Bool("c", false, "enable certificate output")
-	versionInfoFlag := flag.Bool("v", false, "enable version info output")
+	versionInfoFlag := flag.Bool("v", false, "enable version native output")
+	wmiFlag := flag.Bool("w", false, "enable WMI output")
 	flag.Parse()
 
 	var activeFlags []string
@@ -48,6 +51,9 @@ func main() {
 	}
 	if *versionInfoFlag {
 		activeFlags = append(activeFlags, "v")
+	}
+	if *wmiFlag {
+		activeFlags = append(activeFlags, "w")
 	}
 
 	i := 0
@@ -77,6 +83,8 @@ func OutputProcess(iteration int, flags ...string) {
 	fmt.Println("=========" + blue("DevSpoofGOTest.exe "+strconv.Itoa(iteration)) + "=========")
 	fmt.Println(green("PID: ") + strconv.Itoa(process))
 
+	fmt.Println("GOARCH:", runtime.GOARCH)
+	fmt.Println("GOOS:", runtime.GOOS)
 	for _, aflag := range flags {
 		if aflag == "o" {
 			outputOS()
@@ -90,6 +98,8 @@ func OutputProcess(iteration int, flags ...string) {
 			outputCertificates()
 		} else if aflag == "v" {
 			outputVersionInfo()
+		} else if aflag == "w" {
+			outputWMI()
 		} else {
 			fmt.Println(red("Invalid flag: " + aflag))
 		}
@@ -99,8 +109,8 @@ func OutputProcess(iteration int, flags ...string) {
 }
 
 func outputOS() {
-	computerNameA, errCompA := info.GetComputerNameA()
-	computerNameW, errCompW := info.GetComputerNameW()
+	computerNameA, errCompA := native.GetComputerNameA()
+	computerNameW, errCompW := native.GetComputerNameW()
 
 	str := green("PC name: ")
 	if errCompA != nil {
@@ -117,8 +127,8 @@ func outputOS() {
 }
 
 func outputDisk() {
-	volumeSerialA, errVolA := info.GetVolumeSerialA()
-	volumeSerialW, errVolW := info.GetVolumeSerialW()
+	volumeSerialA, errVolA := native.GetVolumeSerialA()
+	volumeSerialW, errVolW := native.GetVolumeSerialW()
 
 	str := green("Volume Serial: ")
 	if errVolA != nil {
@@ -132,7 +142,7 @@ func outputDisk() {
 		str += volumeSerialW
 	}
 
-	diskSerial, err := info.GetActiveDriveSerialNumber()
+	diskSerial, err := native.GetActiveDriveSerialNumber()
 	str += "\n" + green("Disk Serial: ")
 	if err != nil {
 		str += red("Error getting disk serial: " + err.Error())
@@ -143,7 +153,7 @@ func outputDisk() {
 }
 
 func outputHardware() {
-	motherboardSerial, err := info.GetMotherboardSerial()
+	motherboardSerial, err := native.GetMotherboardSerial()
 
 	str := green("Motherboard Serial: ")
 	if err != nil {
@@ -152,7 +162,7 @@ func outputHardware() {
 		str += motherboardSerial
 	}
 
-	biosSerial, err := info.GetBIOSSerial()
+	biosSerial, err := native.GetBIOSSerial()
 	str += "\n" + green("BIOS Serial: ")
 	if err != nil {
 		str += red("Error getting BIOS serial (" + err.Error() + ")")
@@ -160,7 +170,7 @@ func outputHardware() {
 		str += biosSerial
 	}
 
-	processorID, err := info.GetProcessorID()
+	processorID, err := native.GetProcessorID()
 	str += "\n" + green("Processor ID: ")
 	if err != nil {
 		str += red("Error getting processor ID (" + err.Error() + ")")
@@ -168,7 +178,7 @@ func outputHardware() {
 		str += processorID
 	}
 
-	systemUUID, err := info.GetSystemUUID()
+	systemUUID, err := native.GetSystemUUID()
 	str += "\n" + green("System UUID: ")
 	if err != nil {
 		str += red("Error getting system UUID (" + err.Error() + ")")
@@ -176,7 +186,7 @@ func outputHardware() {
 		str += systemUUID
 	}
 
-	machineGUID, err := info.GetMachineGUID()
+	machineGUID, err := native.GetMachineGUID()
 	str += "\n" + green("Machine GUID: ")
 	if err != nil {
 		str += red("Error getting machine GUID (" + err.Error() + ")")
@@ -187,11 +197,11 @@ func outputHardware() {
 }
 
 func outputNetwork() {
-	adapters, err := info.GetWlanInfo()
+	adapters, err := native.GetWlanInfo()
 
 	str := green("Network Adapters: ")
 	if err != nil {
-		str += red("Error getting adapter info: " + err.Error())
+		str += red("Error getting adapter native: " + err.Error())
 	} else {
 		if len(adapters) == 0 {
 			str += cyan("No adapters found")
@@ -224,7 +234,7 @@ func outputNetwork() {
 
 func outputCertificates() {
 	str := green("=====Certificates=====")
-	certificates, err := info.GetCertificatesFromRegistry()
+	certificates, err := native.GetCertificatesFromRegistry()
 	if err != nil {
 		str += red("Error getting certificates: " + err.Error())
 	} else {
@@ -247,37 +257,37 @@ func outputVersionInfo() {
 	regPath := `SOFTWARE\Microsoft\Windows NT\CurrentVersion`
 	k, err := registry.OpenKey(registry.LOCAL_MACHINE, regPath, registry.READ)
 	if err != nil {
-		str += red("Error getting version info: " + err.Error())
+		str += red("Error getting version native: " + err.Error())
 	} else {
-		digitalId, err := info.GetDigitalID(k)
+		digitalId, err := native.GetDigitalID(k)
 		if err != nil {
 			str += "\n" + red("Error getting DigitalProductId: "+err.Error())
 		} else {
 			str += "\n" + green("DigitalProductId: ") + digitalId
 		}
 
-		digitalId4, err := info.GetDigitalID4(k)
+		digitalId4, err := native.GetDigitalID4(k)
 		if err != nil {
 			str += "\n" + red("Error getting DigitalProductId4: "+err.Error())
 		} else {
 			str += "\n" + green("DigitalProductId4: ") + digitalId4
 		}
 
-		productId, err := info.GetProductID(k)
+		productId, err := native.GetProductID(k)
 		if err != nil {
 			str += "\n" + red("Error getting ProductId: "+err.Error())
 		} else {
 			str += "\n" + green("ProductId: ") + productId
 		}
 
-		installDate, err := info.GetInstallDate(k)
+		installDate, err := native.GetInstallDate(k)
 		if err != nil {
 			str += "\n" + red("Error getting InstallDate: "+err.Error())
 		} else {
 			str += "\n" + green("InstallDate: ") + installDate
 		}
 
-		installTime, err := info.GetInstallTime(k)
+		installTime, err := native.GetInstallTime(k)
 		if err != nil {
 			str += "\n" + red("Error getting InstallTime: "+err.Error())
 		} else {
@@ -288,5 +298,17 @@ func outputVersionInfo() {
 	}
 
 	str += green("\n=====================")
+	fmt.Println(str)
+}
+
+func outputWMI() {
+	str := green("=====WMI=====")
+	biosSerial, err := wmi.GetBIOSSerial()
+	if err != nil {
+		str += red("Error getting BIOS serial: " + err.Error())
+	} else {
+		str += "\n" + green("BIOS Serial: ") + biosSerial
+	}
+
 	fmt.Println(str)
 }

@@ -1,4 +1,4 @@
-package info
+package native
 
 import (
 	"crypto/sha1" // For SHA-1 thumbprint

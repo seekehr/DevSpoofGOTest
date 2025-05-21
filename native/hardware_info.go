@@ -1,4 +1,4 @@
-package info
+package native
 
 import (
 	"bytes"
@@ -13,8 +13,8 @@ import (
 const (
 	RSMB                           = 0x52534D42
 	SmbiosTypeSystemInformation    = 1
-	SmbiosTypeBaseboard            = 2 // Type 2 is for baseboard (motherboard) info
-	SmbiosTypeProcessorInformation = 4 // Type 0 is for BIOS info
+	SmbiosTypeBaseboard            = 2 // Type 2 is for baseboard (motherboard) native
+	SmbiosTypeProcessorInformation = 4 // Type 0 is for BIOS native
 )
 
 type RawSMBIOSData struct {
