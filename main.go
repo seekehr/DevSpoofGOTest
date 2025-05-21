@@ -9,7 +9,6 @@ import (
 	"golang.org/x/sys/windows/registry"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strconv"
 	"syscall"
 	"time"
@@ -83,8 +82,6 @@ func OutputProcess(iteration int, flags ...string) {
 	fmt.Println("=========" + blue("DevSpoofGOTest.exe "+strconv.Itoa(iteration)) + "=========")
 	fmt.Println(green("PID: ") + strconv.Itoa(process))
 
-	fmt.Println("GOARCH:", runtime.GOARCH)
-	fmt.Println("GOOS:", runtime.GOOS)
 	for _, aflag := range flags {
 		if aflag == "o" {
 			outputOS()
@@ -304,10 +301,16 @@ func outputVersionInfo() {
 func outputWMI() {
 	str := green("=====WMI=====")
 	biosSerial, err := wmi.GetBIOSSerial()
-	if err != nil {
-		str += red("Error getting BIOS serial: " + err.Error())
+	biosSerial2, err2 := wmi.GetBIOSSerialFromAll()
+	if err != nil || err2 != nil {
+		if err2 != nil {
+			str += red("Error getting BIOS serial from all: " + err2.Error())
+		} else {
+			str += red("Error getting BIOS serial: " + err.Error())
+		}
 	} else {
-		str += "\n" + green("BIOS Serial: ") + biosSerial
+		str += "\n" + green("BIOS Serial: ") + biosSerial.SerialNumber + green(" | ") + biosSerial2
+		str += "\n" + green("BIOS Name: ") + biosSerial.Name
 	}
 
 	fmt.Println(str)
