@@ -313,5 +313,32 @@ func outputWMI() {
 		str += "\n" + green("BIOS Name: ") + biosSerial.Name
 	}
 
+	str += "\n"
+	processor, err := wmi.GetProcessorInfo()
+	processor2, err2 := wmi.GetProcessorInfoFromAll()
+	if err != nil || err2 != nil {
+		if err2 != nil {
+			str += red("Error getting processor info from all: " + err2.Error())
+		} else {
+			str += red("Error getting processor info: " + err.Error())
+		}
+	} else {
+		str += "\n" + green("Processor ID: ") + processor.ProcessorId + green(" | ") + processor2.ProcessorId
+		str += "\n" + green("Processor SerialNumber: ") + processor.SerialNumber + green(" | ") + processor2.SerialNumber
+	}
+
+	str += "\n"
+	physicalMemory, err := wmi.GetPhysicalMemoryInfo()
+	physicalMemory2, err2 := wmi.GetPhysicalMemoryInfoFromAll()
+	if err != nil || err2 != nil {
+		if err2 != nil {
+			str += red("Error getting physical memory info from all: " + err2.Error())
+		} else {
+			str += red("Error getting physical memory info: " + err.Error())
+		}
+	} else {
+		str += "\n" + green("Physical Memory SerialNumber: ") + physicalMemory.SerialNumber + green(" | ") + physicalMemory2.SerialNumber
+		str += "\n" + green("Physical Memory PartNumber: ") + physicalMemory.PartNumber + green(" | ") + physicalMemory2.PartNumber
+	}
 	fmt.Println(str)
 }
